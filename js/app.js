@@ -297,47 +297,31 @@ const App = (() => {
     reader.readAsText(file);
   }
 
-  /* 샘플 데이터 삽입 */
-  function insertSampleData() {
-    if (DB.members.all().length > 0) {
-      Utils.toast('이미 데이터가 있습니다.', 'info');
-      return;
-    }
-
-    const classId1 = Utils.uuid();
-    const classId2 = Utils.uuid();
-    const classId3 = Utils.uuid();
-
-    DB.classes.create({ id: classId1, name: '아동 수채화반', ageGroup:'elementary', color:'#A4C4E8', description:'초등학생 대상 수채화 기초 과정', schedule:[{day:2,time:'15:30',duration:60},{day:4,time:'15:30',duration:60}] });
-    DB.classes.create({ id: classId2, name: '유치부 창의미술', ageGroup:'kindergarten', color:'#E8A4C8', description:'유치원생 대상 창의적 미술 활동', schedule:[{day:1,time:'16:00',duration:50},{day:3,time:'16:00',duration:50}] });
-    DB.classes.create({ id: classId3, name: '성인 소묘반', ageGroup:'adult', color:'#A4E0C4', description:'성인 대상 데생·소묘 기초~심화', schedule:[{day:3,time:'19:00',duration:90},{day:5,time:'10:00',duration:90}] });
-
-    const m1 = Utils.uuid(), m2 = Utils.uuid(), m3 = Utils.uuid(), m4 = Utils.uuid(), m5 = Utils.uuid();
-
-    DB.members.create({ id:m1, name:'김민준', ageGroup:'elementary', phone:'010-1234-5678', guardianPhone:'010-9876-5432', registrationDate:'2025-03-01', monthlyFee:150000, periodStart:'2026-06-01', periodEnd:'2026-06-30', paymentStatus:'paid', weeklySchedule:[{day:2,time:'15:30'},{day:4,time:'15:30'}], memo:'' });
-    DB.members.create({ id:m2, name:'이서연', ageGroup:'kindergarten', phone:'', guardianPhone:'010-2222-3333', registrationDate:'2025-09-01', monthlyFee:120000, periodStart:'2026-06-01', periodEnd:'2026-06-08', paymentStatus:'expiring', weeklySchedule:[{day:1,time:'16:00'},{day:3,time:'16:00'}], memo:'물감 알레르기 주의' });
-    DB.members.create({ id:m3, name:'박지훈', ageGroup:'adult', phone:'010-3333-4444', guardianPhone:'', registrationDate:'2024-12-01', monthlyFee:200000, periodStart:'2026-06-01', periodEnd:'2026-06-30', paymentStatus:'paid', weeklySchedule:[{day:3,time:'19:00'},{day:5,time:'10:00'}], memo:'' });
-    DB.members.create({ id:m4, name:'최아린', ageGroup:'elementary', phone:'', guardianPhone:'010-5555-6666', registrationDate:'2026-01-15', monthlyFee:150000, periodStart:'2026-05-01', periodEnd:'2026-05-31', paymentStatus:'expired', weeklySchedule:[{day:2,time:'15:30'}], memo:'' });
-    DB.members.create({ id:m5, name:'정하은', ageGroup:'adult', phone:'010-7777-8888', guardianPhone:'', registrationDate:'2026-04-01', monthlyFee:180000, periodStart:'', periodEnd:'', paymentStatus:'unpaid', weeklySchedule:[{day:5,time:'10:00'}], memo:'첫 등록 대기' });
-
-    const today = Utils.todayStr();
-    DB.payments.create({ id:Utils.uuid(), memberId:m1, date:'2026-06-01', amount:150000, method:'card', periodStart:'2026-06-01', periodEnd:'2026-06-30', memo:'' });
-    DB.payments.create({ id:Utils.uuid(), memberId:m3, date:'2026-06-02', amount:200000, method:'transfer', periodStart:'2026-06-01', periodEnd:'2026-06-30', memo:'' });
-    DB.payments.create({ id:Utils.uuid(), memberId:m2, date:'2026-05-03', amount:120000, method:'cash', periodStart:'2026-05-03', periodEnd:'2026-06-08', memo:'' });
-
-    DB.lessons.create({ id:Utils.uuid(), classId:classId1, date:'2026-06-10', topic:'파란 하늘 수채화', content:'번지기 기법을 활용해 하늘과 구름 표현', memberProgress:[{memberId:m1,progress:'번지기 기법 익힘'},{memberId:m4,progress:'색 혼합 연습 중'}] });
-    DB.lessons.create({ id:Utils.uuid(), classId:classId3, date:'2026-06-11', topic:'정물 소묘 - 사과', content:'원통형 물체 명암 표현법', memberProgress:[{memberId:m3,progress:'명암 3단계 완성'},{memberId:m5,progress:'기본 윤곽선 연습'}] });
-
-    DB.attendance.upsert({ id:Utils.uuid(), memberId:m1, date:today, status:'present' });
-    DB.attendance.upsert({ id:Utils.uuid(), memberId:m3, date:today, status:'present' });
-    DB.attendance.upsert({ id:Utils.uuid(), memberId:m5, date:today, status:'absent' });
-
-    DB.members.refreshStatus();
-    Utils.toast('샘플 데이터가 삽입되었습니다.', 'success');
-    navigate('dashboard');
+  /* 전체 데이터 초기화 (Firestore + localStorage) */
+  async function clearAllData() {
+    Utils.confirm('⚠️ 모든 데이터(회원·수납·수업·출석)가 삭제됩니다.\n정말 초기화하시겠습니까?', async () => {
+      try {
+        DB.clearAll();
+        // Firestore 전체 삭제
+        if (window.FirebaseSync) {
+          const cols = ['members','payments','classes','lessons','attendance'];
+          const db = firebase.firestore();
+          for (const col of cols) {
+            const snap = await db.collection(col).get();
+            const batch = db.batch();
+            snap.docs.forEach(d => batch.delete(d.ref));
+            if (snap.docs.length > 0) await batch.commit();
+          }
+        }
+        Utils.toast('모든 데이터가 초기화되었습니다.', 'success');
+        navigate('dashboard');
+      } catch(e) {
+        Utils.toast('초기화 중 오류가 발생했습니다.', 'error');
+      }
+    });
   }
 
-  return { init, navigate, exportData, insertSampleData, closeSidebar };
+  return { init, navigate, exportData, clearAllData, closeSidebar };
 })();
 
 /* ── 로그아웃 버튼 추가 ─────────────────── */
@@ -368,27 +352,4 @@ const _origInit = App.init.bind(App);
 App.init = function() {
   _origInit();
   addLogoutBtn();
-
-  if (DB.members.all().length === 0 && DB.classes.all().length === 0) {
-    setTimeout(() => {
-      Utils.openModal('하루온에 오신 것을 환영합니다! 🎨',
-        `<div style="text-align:center;padding:10px 0;">
-          <div style="font-size:3rem;margin-bottom:16px;">🎨</div>
-          <p style="font-size:.95rem;color:var(--text-sub);line-height:1.7;margin-bottom:20px;">
-            미술 교습소 관리 시스템 <strong>하루온</strong>에 오신 것을 환영합니다!<br>
-            샘플 데이터로 시작하시거나, 직접 회원을 등록해 사용하실 수 있습니다.
-          </p>
-          <div style="background:var(--bg-alt);border-radius:var(--radius-sm);padding:14px;font-size:.83rem;color:var(--text-sub);text-align:left;margin-bottom:8px;">
-            <strong>주요 기능</strong><br>
-            👥 회원 관리 · 💳 수납 관리<br>
-            🎨 수업 관리 · 📅 캘린더 · ✅ 출석 관리
-          </div>
-        </div>`,
-        `<button class="btn btn-ghost" onclick="Utils.closeModal()">직접 시작</button>
-         <button class="btn btn-primary" onclick="Utils.closeModal();App.insertSampleData()">
-           <i class="fas fa-magic"></i> 샘플 데이터로 시작
-         </button>`
-      );
-    }, 400);
-  }
 };
