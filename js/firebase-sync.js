@@ -103,8 +103,40 @@ const FirebaseSync = (() => {
     _unsubscribers = [];
   }
 
+  /* ── Firestore 전체 삭제 ─────────────── */
+  async function clearFirestoreAll() {
+    if (!db) {
+      console.error('[Firebase] clearFirestoreAll: db가 초기화되지 않았음');
+      return 0;
+    }
+    let totalDeleted = 0;
+    const colNames = Object.values(COL);
+    for (const col of colNames) {
+      try {
+        const snap = await db.collection(col).get();
+        console.log(`[Firebase] ${col}: ${snap.size}개 문서 발견`);
+        if (snap.size > 0) {
+          // 500개 초과 시 분할 처리
+          const CHUNK = 400;
+          for (let i = 0; i < snap.docs.length; i += CHUNK) {
+            const batch = db.batch();
+            snap.docs.slice(i, i + CHUNK).forEach(d => batch.delete(d.ref));
+            await batch.commit();
+          }
+          totalDeleted += snap.size;
+          console.log(`[Firebase] ${col}: ${snap.size}개 삭제 완료`);
+        }
+      } catch (e) {
+        console.error(`[Firebase] ${col} 삭제 실패:`, e.code, e.message);
+        throw e;
+      }
+    }
+    console.log(`[Firebase] 전체 초기화 완료 — 총 ${totalDeleted}개 삭제`);
+    return totalDeleted;
+  }
+
   /* localStorage 키 → Firestore 컬렉션명 변환 */
   function colOf(lsKey) { return COL[lsKey] || null; }
 
-  return { init, loadAll, write, remove, startListeners, stopListeners, colOf };
+  return { init, loadAll, write, remove, startListeners, stopListeners, colOf, clearFirestoreAll };
 })();
