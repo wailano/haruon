@@ -150,7 +150,7 @@ const Auth = (() => {
           </div>
           <div class="login-version" style="margin-top:4px;">
             <i class="fas fa-heart" style="color:var(--primary);font-size:.65rem;"></i>
-            <span>made by 승후, 승현 아빠</span>
+            <span>Developed by 승후, 승현 아빠</span>
           </div>
         </div>
       </div>`;
