@@ -114,7 +114,7 @@ const Auth = (() => {
         <div class="login-card" id="loginCard">
           <div class="login-logo">
             <span style="font-size:3rem;">🎨</span>
-            <h1 class="login-title">하루온</h1>
+            <h1 class="login-title">하루 온 아트</h1>
             <p class="login-subtitle">미술 교습소 관리 시스템</p>
           </div>
           <div class="login-form">

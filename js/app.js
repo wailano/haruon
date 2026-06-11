@@ -33,7 +33,7 @@ const App = (() => {
         font-family:'Noto Sans KR',sans-serif;`;
       el.innerHTML = `
         <div style="font-size:2.5rem;">🎨</div>
-        <div style="font-size:1rem;font-weight:700;color:#C06898;">하루온</div>
+        <div style="font-size:1rem;font-weight:700;color:#C06898;">하루 온 아트</div>
         <div style="width:40px;height:40px;border:3px solid #F8E4F2;border-top-color:#E8A4C8;
           border-radius:50%;animation:fbSpin 0.8s linear infinite;"></div>
         <div style="font-size:0.82rem;color:#8A8280;">데이터 불러오는 중...</div>
