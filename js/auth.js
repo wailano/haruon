@@ -143,6 +143,15 @@ const Auth = (() => {
           <p class="login-footer-note">
             <i class="fas fa-shield-alt"></i> 관리자 전용 시스템입니다.
           </p>
+          <div class="login-version">
+            <span>v1.0.3</span>
+            <span class="login-version-dot">·</span>
+            <span>최종 업데이트 2026.06.11</span>
+          </div>
+          <div class="login-version" style="margin-top:4px;">
+            <i class="fas fa-heart" style="color:var(--primary);font-size:.65rem;"></i>
+            <span>made by 승후, 승현 아빠</span>
+          </div>
         </div>
       </div>`;
   }
