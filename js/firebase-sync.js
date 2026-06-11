@@ -36,14 +36,29 @@ const FirebaseSync = (() => {
     }
   }
 
-  /* ── Firestore → localStorage 전체 로드 ─── */
+  /* ── Firestore ↔ localStorage 동기화 로드 ─── */
   async function loadAll() {
     if (!db) return;
     try {
-      await Promise.all(Object.values(COL).map(async col => {
+      await Promise.all(Object.entries(COL).map(async ([lsKey, col]) => {
         const snap = await db.collection(col).get();
-        const items = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-        localStorage.setItem(KEY[col], JSON.stringify(items));
+
+        if (snap.docs.length > 0) {
+          // Firestore에 데이터 있음 → localStorage에 덮어씀
+          const items = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+          localStorage.setItem(lsKey, JSON.stringify(items));
+        } else {
+          // Firestore 비어있음 → localStorage 데이터를 Firestore에 업로드
+          const local = JSON.parse(localStorage.getItem(lsKey) || '[]');
+          if (local.length > 0) {
+            const batch = db.batch();
+            local.forEach(item => {
+              if (item.id) batch.set(db.collection(col).doc(String(item.id)), item);
+            });
+            await batch.commit();
+          }
+          // localStorage는 건드리지 않음 (빈 데이터로 덮어쓰지 않음)
+        }
       }));
     } catch(e) {
       console.warn('[Firebase] 데이터 로드 실패 (오프라인이거나 규칙 문제):', e.message);
@@ -71,10 +86,16 @@ const FirebaseSync = (() => {
     if (!db) return;
 
     Object.entries(COL).forEach(([lsKey, colName]) => {
+      let isFirst = true;
       const unsub = db.collection(colName).onSnapshot(snap => {
-        const items = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-        localStorage.setItem(lsKey, JSON.stringify(items));
-        if (_onChangeCallback) _onChangeCallback(colName);
+        // 첫 스냅샷이 비어있으면 localStorage를 건드리지 않음 (loadAll에서 처리)
+        if (isFirst && snap.docs.length === 0) { isFirst = false; return; }
+        isFirst = false;
+        if (snap.docs.length > 0) {
+          const items = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+          localStorage.setItem(lsKey, JSON.stringify(items));
+          if (_onChangeCallback) _onChangeCallback(colName);
+        }
       }, err => console.warn('[Firebase] 리스너 오류:', err.message));
       _unsubscribers.push(unsub);
     });
