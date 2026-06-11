@@ -17,16 +17,24 @@ const DB = (() => {
     localStorage.setItem(key, JSON.stringify(data));
   }
   function byId(key, id)        { return load(key).find(x => x.id === id) || null; }
-  function add(key, item)       { const a = load(key); a.push(item); save(key, a); return item; }
+  function add(key, item) {
+    const a = load(key); a.push(item); save(key, a);
+    if (window.FirebaseSync) FirebaseSync.write(FirebaseSync.colOf(key), item.id, item);
+    return item;
+  }
   function put(key, id, patch)  {
     const a = load(key);
     const i = a.findIndex(x => x.id === id);
     if (i < 0) return null;
     a[i] = { ...a[i], ...patch };
     save(key, a);
+    if (window.FirebaseSync) FirebaseSync.write(FirebaseSync.colOf(key), id, a[i]);
     return a[i];
   }
-  function del(key, id)         { save(key, load(key).filter(x => x.id !== id)); }
+  function del(key, id) {
+    save(key, load(key).filter(x => x.id !== id));
+    if (window.FirebaseSync) FirebaseSync.remove(FirebaseSync.colOf(key), id);
+  }
 
   /* ─── 회원 ─────────────────────────────── */
   const members = {
@@ -89,8 +97,14 @@ const DB = (() => {
     upsert(record) {
       const list = load(K.ATTENDANCE);
       const i = list.findIndex(a => a.date === record.date && a.memberId === record.memberId);
-      if (i >= 0) { list[i] = { ...list[i], ...record }; save(K.ATTENDANCE, list); return list[i]; }
-      list.push(record); save(K.ATTENDANCE, list); return record;
+      if (i >= 0) {
+        list[i] = { ...list[i], ...record }; save(K.ATTENDANCE, list);
+        if (window.FirebaseSync) FirebaseSync.write('attendance', list[i].id, list[i]);
+        return list[i];
+      }
+      list.push(record); save(K.ATTENDANCE, list);
+      if (window.FirebaseSync) FirebaseSync.write('attendance', record.id, record);
+      return record;
     },
     delete: id => del(K.ATTENDANCE, id)
   };

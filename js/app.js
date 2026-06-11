@@ -3,13 +3,45 @@
 const App = (() => {
   let _page = 'dashboard';
 
-  function init() {
+  async function init() {
+    showFbLoading(true);
+    // Firebase 초기화 및 데이터 로드
+    FirebaseSync.init();
+    await FirebaseSync.loadAll();
+    // 다른 기기에서 변경 시 현재 페이지 자동 갱신
+    FirebaseSync.startListeners(colName => {
+      DB.members.refreshStatus();
+      navigate(_page);
+    });
+    showFbLoading(false);
     setupNav();
     setupModal();
     setupSidebar();
     setupDataIO();
     DB.members.refreshStatus();
     navigate('dashboard');
+  }
+
+  function showFbLoading(show) {
+    let el = document.getElementById('fbLoading');
+    if (show) {
+      if (el) return;
+      el = document.createElement('div');
+      el.id = 'fbLoading';
+      el.style.cssText = `position:fixed;inset:0;background:rgba(255,255,255,0.92);z-index:8000;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+        font-family:'Noto Sans KR',sans-serif;`;
+      el.innerHTML = `
+        <div style="font-size:2.5rem;">🎨</div>
+        <div style="font-size:1rem;font-weight:700;color:#C06898;">하루온</div>
+        <div style="width:40px;height:40px;border:3px solid #F8E4F2;border-top-color:#E8A4C8;
+          border-radius:50%;animation:fbSpin 0.8s linear infinite;"></div>
+        <div style="font-size:0.82rem;color:#8A8280;">데이터 불러오는 중...</div>
+        <style>@keyframes fbSpin{to{transform:rotate(360deg)}}</style>`;
+      document.body.appendChild(el);
+    } else {
+      if (el) { el.style.opacity='0'; el.style.transition='opacity 0.3s'; setTimeout(()=>el.remove(),300); }
+    }
   }
 
   /* ── 네비게이션 ─────────────────────────── */
