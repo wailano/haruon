@@ -300,23 +300,36 @@ const App = (() => {
   /* 전체 데이터 초기화 (Firestore + localStorage) */
   async function clearAllData() {
     Utils.confirm('⚠️ 모든 데이터(회원·수납·수업·출석)가 삭제됩니다.\n정말 초기화하시겠습니까?', async () => {
+      showFbLoading(true);
       try {
+        // 1) localStorage 즉시 삭제
         DB.clearAll();
-        // Firestore 전체 삭제
+
+        // 2) Firestore 전체 삭제 (리스너 먼저 중단)
         if (window.FirebaseSync) {
-          const cols = ['members','payments','classes','lessons','attendance'];
+          FirebaseSync.stopListeners();
           const db = firebase.firestore();
+          const cols = ['members','payments','classes','lessons','attendance'];
           for (const col of cols) {
-            const snap = await db.collection(col).get();
-            const batch = db.batch();
-            snap.docs.forEach(d => batch.delete(d.ref));
-            if (snap.docs.length > 0) await batch.commit();
+            let snap = await db.collection(col).get();
+            // 재시도: 캐시 데이터가 남아 있을 경우 서버에서 한 번 더 가져옴
+            if (snap.empty) snap = await db.collection(col).get();
+            if (!snap.empty) {
+              const batch = db.batch();
+              snap.docs.forEach(d => batch.delete(d.ref));
+              await batch.commit();
+            }
           }
         }
-        Utils.toast('모든 데이터가 초기화되었습니다.', 'success');
-        navigate('dashboard');
+
+        showFbLoading(false);
+        Utils.toast('모든 데이터가 초기화되었습니다. 새로고침합니다...', 'success');
+        // 3) 1.5초 후 페이지 리로드 — 완전히 깨끗한 상태로 재시작
+        setTimeout(() => location.reload(), 1500);
       } catch(e) {
-        Utils.toast('초기화 중 오류가 발생했습니다.', 'error');
+        showFbLoading(false);
+        console.error('[clearAllData]', e);
+        Utils.toast('초기화 중 오류: ' + e.message, 'error');
       }
     });
   }

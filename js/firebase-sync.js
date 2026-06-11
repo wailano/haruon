@@ -28,8 +28,7 @@ const FirebaseSync = (() => {
     try {
       if (!firebase.apps.length) firebase.initializeApp(CONFIG);
       db = firebase.firestore();
-      // 오프라인 지원 활성화
-      db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+      // enablePersistence 비활성화 — IndexedDB 캐시가 stale 데이터를 복구하는 문제 방지
     } catch(e) {
       console.warn('[Firebase] 초기화 실패:', e);
       db = null;
@@ -88,14 +87,12 @@ const FirebaseSync = (() => {
     Object.entries(COL).forEach(([lsKey, colName]) => {
       let isFirst = true;
       const unsub = db.collection(colName).onSnapshot(snap => {
-        // 첫 스냅샷이 비어있으면 localStorage를 건드리지 않음 (loadAll에서 처리)
-        if (isFirst && snap.docs.length === 0) { isFirst = false; return; }
-        isFirst = false;
-        if (snap.docs.length > 0) {
-          const items = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-          localStorage.setItem(lsKey, JSON.stringify(items));
-          if (_onChangeCallback) _onChangeCallback(colName);
-        }
+        // 첫 스냅샷은 loadAll()에서 이미 처리했으므로 스킵
+        if (isFirst) { isFirst = false; return; }
+        // 이후 스냅샷: 다른 기기에서 변경(추가/수정/삭제) 시 localStorage 동기화
+        const items = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+        localStorage.setItem(lsKey, JSON.stringify(items));
+        if (_onChangeCallback) _onChangeCallback(colName);
       }, err => console.warn('[Firebase] 리스너 오류:', err.message));
       _unsubscribers.push(unsub);
     });
