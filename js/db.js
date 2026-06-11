@@ -46,12 +46,17 @@ const DB = (() => {
     refreshStatus() {
       const now = new Date(); now.setHours(0,0,0,0);
       const list = load(K.MEMBERS).map(m => {
-        if (!m.periodEnd) { m.paymentStatus = 'unpaid'; return m; }
+        if (!m.periodEnd) {
+          // 수강 기간 없으면 미납 (단, 이미 만료된 경우 유지)
+          if (m.paymentStatus !== 'expired') m.paymentStatus = 'unpaid';
+          return m;
+        }
         const end = new Date(m.periodEnd); end.setHours(0,0,0,0);
         const diff = Math.ceil((end - now) / 86400000);
-        if (diff < 0)     m.paymentStatus = 'expired';
-        else if (diff <= 7) m.paymentStatus = 'expiring';
-        else              m.paymentStatus = 'paid';
+        if (diff < 0)        m.paymentStatus = 'expired';
+        else if (diff <= 7)  m.paymentStatus = 'expiring';
+        // 기간이 남아있어도 수납 등록이 없으면 상태 그대로 유지
+        // (완납은 수납 등록 시에만 설정됨)
         return m;
       });
       save(K.MEMBERS, list);
